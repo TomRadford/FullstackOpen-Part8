@@ -1,5 +1,6 @@
 import { useQuery } from '@apollo/client'
 import { ALL_AUTHORS } from '../queries'
+import EditAuthor from './EditAuthor'
 
 const Authors = (props) => {
   const result = useQuery(ALL_AUTHORS, {
@@ -26,7 +27,7 @@ const Authors = (props) => {
             <th>books</th>
           </tr>
           {authors.map((a) => (
-            <tr key={a.name}>
+            <tr key={a.id}>
               <td>{a.name}</td>
               <td>{a.born}</td>
               <td>{a.bookCount}</td>
@@ -34,6 +35,7 @@ const Authors = (props) => {
           ))}
         </tbody>
       </table>
+      <EditAuthor authors={authors} />
     </div>
   )
 }
