@@ -1,12 +1,20 @@
-const { ApolloServer, UserInputError, gql } = require('apollo-server')
+const {
+  ApolloServer,
+  UserInputError,
+  AuthenticationError,
+  gql,
+} = require('apollo-server')
 const mongoose = require('mongoose')
+const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
 const config = require('./utils/config')
 
 const Author = require('./models/author')
 const Book = require('./models/book')
-const author = require('./models/author')
+const User = require('./models/user')
+const user = require('./models/user')
 
-console.log('CONNECTING TO ', config.MONGODB_URI)
+console.log('CONNECTING TO', config.MONGODB_URI)
 
 mongoose
   .connect(config.MONGODB_URI)
@@ -14,9 +22,19 @@ mongoose
   .catch((e) => console.log('Error: ' + e.message))
 
 const typeDefs = gql`
+  type User {
+    username: String!
+    favouriteGenre: String!
+    id: ID!
+  }
+
+  type Token {
+    value: String!
+  }
+
   type Author {
     name: String!
-    id: String!
+    id: ID!
     born: Int
     bookCount: Int!
   }
@@ -34,6 +52,7 @@ const typeDefs = gql`
     authorCount: Int!
     allBooks(author: String, genre: String): [Book!]!
     allAuthors: [Author!]!
+    me: User
   }
 
   type Mutation {
@@ -41,13 +60,21 @@ const typeDefs = gql`
       title: String!
       published: Int!
       genres: [String!]!
-      author: String
+      author: String!
     ): Book
     editAuthor(name: String!, setBornTo: Int!): Author
+    createUser(
+      username: String!
+      password: String!
+      favouriteGenre: String!
+    ): User
+    login(username: String!, password: String!): Token
   }
 `
+
 const getAuthor = async (args) => {
   const author = await Author.findOne({ name: args.author })
+  if (!author) throw new UserInputError('Author does not exist')
   return author
 }
 
@@ -79,39 +106,81 @@ const resolvers = {
     allAuthors: async () => await Author.find({}),
   },
   Mutation: {
-    addBook: async (root, args) => {
-      newBook = new Book({ ...args })
-      const existingAuthor = await Author.findOne({ name: args.author })
-      if (!existingAuthor) {
-        const newAuthor = new Author({ name: args.author })
-        await newAuthor.save()
-        newBook.author = newAuthor._id
-      } else {
-        newBook.author = existingAuthor._id
-      }
-
-      await newBook.save()
-      await newBook.populate('author')
-      return newBook
+    createUser: async (root, args) => {
+      passwordHash = await bcrypt.hash(args.password, 10)
+      const user = new User({
+        username: args.username,
+        passwordHash,
+        favouriteGenre: args.favouriteGenre,
+      })
+      return await user.save().catch((e) => {
+        throw new UserInputError(e.message, {
+          invalidArgs: args,
+        })
+      })
     },
-    editAuthor: async (root, args) => {
+    login: async (root, args) => {
+      const user = await User.findOne({ username: args.username })
+      const loginCorrect =
+        user === null
+          ? false
+          : await bcrypt.compare(args.password, user.passwordHash)
+      if (!loginCorrect) {
+        throw new UserInputError('Incorrect credentials')
+      }
+      return {
+        value: jwt.sign(
+          {
+            username: user.username,
+            id: user._id,
+          },
+          config.SECRET,
+          {
+            expiresIn: 60 * 60,
+          }
+        ),
+      }
+    },
+    addBook: async (root, args, context) => {
+      const { currentUser } = context
+      if (!currentUser) {
+        throw new AuthenticationError('User not authenticated')
+      }
       try {
-        const updatedAuthor = await Author.findOneAndUpdate(
-          { name: args.name },
-          { born: args.setBornTo },
-          { new: true }
-        )
-        return updatedAuthor
+        newBook = new Book({ ...args })
+        const existingAuthor = await Author.findOne({ name: args.author })
+        if (!existingAuthor) {
+          const newAuthor = new Author({ name: args.author })
+          await newAuthor.save()
+          newBook.author = newAuthor._id
+        } else {
+          newBook.author = existingAuthor._id
+        }
+        await newBook.save()
+        await newBook.populate('author')
       } catch (e) {
-        return UserInputError(e.message, {
+        throw new UserInputError(e.message, {
           invalidArgs: args,
         })
       }
+      return newBook
+    },
+    editAuthor: async (root, args, context) => {
+      const { currentUser } = context
+      if (!currentUser) {
+        return new AuthenticationError('User not authenticated')
+      }
+      const updatedAuthor = await Author.findOneAndUpdate(
+        { name: args.name },
+        { born: args.setBornTo },
+        { new: true }
+      )
+      if (!updatedAuthor) {
+        throw new UserInputError('Author not found')
+      }
+      return updatedAuthor
     },
   },
-  // Book: {
-  //   genres: (root, args) => root.genres,
-  // },
   Author: {
     bookCount: async (root, args) => {
       const bookCount = await Book.count({ author: root._id })
@@ -123,6 +192,14 @@ const resolvers = {
 const server = new ApolloServer({
   typeDefs,
   resolvers,
+  context: async ({ req }) => {
+    const auth = req ? req.headers.authorization : null
+    if (auth && auth.toLowerCase().startsWith('bearer')) {
+      const decodedToken = jwt.verify(auth.substring(7), config.SECRET)
+      const currentUser = await User.findById(decodedToken.id)
+      return { currentUser }
+    }
+  },
 })
 
 server.listen().then(({ url }) => {
