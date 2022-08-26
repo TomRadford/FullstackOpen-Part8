@@ -10,7 +10,7 @@ import { ALL_BOOKS } from './queries'
 const App = () => {
   const [page, setPage] = useState('authors')
   const [token, setToken] = useState(null)
-  const result = useQuery(ALL_BOOKS)
+  // const result = useQuery(ALL_BOOKS)
   const client = useApolloClient()
   const logout = () => {
     setToken(null)
@@ -22,7 +22,7 @@ const App = () => {
     setToken(localStorage.getItem('library-user-token'))
   }, [])
 
-  if (result.loading) return <div>loading...</div>
+  // if (result.loading) return <div>loading...</div>
 
   return (
     <div>

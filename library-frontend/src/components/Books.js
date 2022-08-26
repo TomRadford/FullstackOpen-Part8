@@ -4,12 +4,16 @@ import { ALL_BOOKS, GENRES } from '../queries'
 
 const Books = (props) => {
   const [filter, setFilter] = useState(null)
-  const booksResult = useQuery(ALL_BOOKS, {
-    skip: !props.show,
-    variables: {
-      genre: filter ? filter : null,
-    },
-  })
+  const getOptions = () => {
+    let opts = { skip: !props.show }
+    if (filter) {
+      opts.variables = {
+        genre: filter,
+      }
+    }
+    return opts
+  }
+  const booksResult = useQuery(ALL_BOOKS, getOptions())
   const genresResult = useQuery(GENRES, {
     skip: !props.show,
   })
