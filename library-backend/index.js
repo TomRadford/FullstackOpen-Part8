@@ -52,6 +52,7 @@ const typeDefs = gql`
     authorCount: Int!
     allBooks(author: String, genre: String): [Book!]!
     allAuthors: [Author!]!
+    allGenres: [String!]!
     me: User
   }
 
@@ -104,6 +105,11 @@ const resolvers = {
       return await Book.find({}).populate('author')
     },
     allAuthors: async () => await Author.find({}),
+    allGenres: async () => {
+      const books = await Book.find({})
+      return [...new Set(books.flatMap((book) => book.genres))]
+    },
+    me: (root, args, context) => context.currentUser,
   },
   Mutation: {
     createUser: async (root, args) => {
@@ -145,6 +151,11 @@ const resolvers = {
       const { currentUser } = context
       if (!currentUser) {
         throw new AuthenticationError('User not authenticated')
+      }
+      if (args.genres.length < 1) {
+        throw new UserInputError('No genres added', {
+          invalidArgs: args.genres,
+        })
       }
       try {
         newBook = new Book({ ...args })
