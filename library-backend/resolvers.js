@@ -135,7 +135,7 @@ const resolvers = {
   Subscription: {
     bookAdded: {
       subscribe: () => pubSub.asyncIterator(['BOOK_ADDED']),
-    }, //ADD TO FRONTEND ;)
+    },
   },
   Author: {
     bookCount: async (root, args) => {
