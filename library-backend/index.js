@@ -27,8 +27,7 @@ mongoose
 
 const start = async () => {
   const app = express()
-  app.use(cors())
-  app.use('/', placeholderRouter)
+
   const httpServer = http.createServer(app)
 
   const schema = makeExecutableSchema({ typeDefs, resolvers })
@@ -41,8 +40,7 @@ const start = async () => {
   const serverCleanup = useServer({ schema }, wsServer)
 
   const server = new ApolloServer({
-    typeDefs,
-    resolvers,
+    schema,
     context: async ({ req }) => {
       const auth = req ? req.headers.authorization : null
       if (auth && auth.toLowerCase().startsWith('bearer')) {
@@ -51,7 +49,27 @@ const start = async () => {
         return { currentUser }
       }
     },
+    plugins: [
+      ApolloServerPluginDrainHttpServer({ httpServer }),
+      {
+        async serverWillStart() {
+          return {
+            async drainServer() {
+              await serverCleanup.dispose()
+            },
+          }
+        },
+      },
+    ],
   })
+  await server.start()
+  app.use(cors())
+  app.use('/', placeholderRouter)
+  server.applyMiddleware({
+    app,
+    path: '/graphql',
+  })
+
   const PORT = 4000
   httpServer.listen(PORT, () => {
     console.log(`Server is now running on PORT ${PORT}`)

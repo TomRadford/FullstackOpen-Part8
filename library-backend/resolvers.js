@@ -1,10 +1,16 @@
 const { UserInputError, AuthenticationError } = require('apollo-server-core')
 
-const bcrypt = require('bcrypt')
 const Author = require('./models/author')
 const Book = require('./models/book')
 const User = require('./models/user')
+
+const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
+const config = require('./utils/config')
+
+const { PubSub } = require('graphql-subscriptions')
+
+const pubSub = new PubSub()
 
 const getAuthor = async (args) => {
   const author = await Author.findOne({ name: args.author })
@@ -107,6 +113,7 @@ const resolvers = {
           invalidArgs: args,
         })
       }
+      pubSub.publish('BOOK_ADDED', { bookAdded: newBook })
       return newBook
     },
     editAuthor: async (root, args, context) => {
@@ -124,6 +131,11 @@ const resolvers = {
       }
       return updatedAuthor
     },
+  },
+  Subscription: {
+    bookAdded: {
+      subscribe: () => pubSub.asyncIterator(['BOOK_ADDED']),
+    }, //ADD TO FRONTEND ;)
   },
   Author: {
     bookCount: async (root, args) => {
