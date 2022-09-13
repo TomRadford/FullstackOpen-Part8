@@ -16,6 +16,7 @@ const NewBook = (props) => {
       console.log(e.graphQLErrors[0].message)
     },
     update: (cache, response) => {
+      console.log(response)
       cache.updateQuery({ query: ALL_BOOKS }, ({ allBooks }) => {
         console.log(response)
         console.log(allBooks)

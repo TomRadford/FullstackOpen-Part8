@@ -4,7 +4,7 @@ import Books from './components/Books'
 import NewBook from './components/NewBook'
 import Login from './components/LoginForm'
 import Recommend from './components/Recommend'
-import { useApolloClient, useQuery } from '@apollo/client'
+import { useApolloClient, useSubscription } from '@apollo/client'
 import { ALL_BOOKS } from './queries'
 
 const App = () => {
