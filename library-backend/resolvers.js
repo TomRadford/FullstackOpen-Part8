@@ -100,10 +100,12 @@ const resolvers = {
         newBook = new Book({ ...args })
         const existingAuthor = await Author.findOne({ name: args.author })
         if (!existingAuthor) {
-          const newAuthor = new Author({ name: args.author })
+          const newAuthor = new Author({ name: args.author, bookCount: 1 })
           await newAuthor.save()
           newBook.author = newAuthor._id
         } else {
+          existingAuthor.bookCount = existingAuthor.bookCount + 1
+          await existingAuthor.save()
           newBook.author = existingAuthor._id
         }
         await newBook.save()
@@ -137,12 +139,13 @@ const resolvers = {
       subscribe: () => pubSub.asyncIterator(['BOOK_ADDED']),
     },
   },
-  Author: {
-    bookCount: async (root, args) => {
-      const bookCount = await Book.count({ author: root._id })
-      return bookCount
-    },
-  },
+  // Author: {
+  //   bookCount: async (root, args) => {
+  //     // const bookCount = await Book.count({ author: root._id })
+  //     // return bookCount
+  //     return 0
+  //   },
+  // },
 }
 
 module.exports = resolvers
