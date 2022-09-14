@@ -12,7 +12,7 @@ const schema = new mongoose.Schema({
   },
   bookCount: {
     type: Number,
-    unique: true,
+    required: true,
   },
 })
 
