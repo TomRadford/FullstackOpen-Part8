@@ -20,8 +20,7 @@ const Books = (props) => {
   if (!props.show) {
     return null
   }
-  if (booksResult.loading) return <div>loading...</div>
-
+  if (booksResult.loading || genresResult.loading) return <div>loading...</div>
   const books = booksResult.data.allBooks
   const genres = genresResult.data.allGenres
 

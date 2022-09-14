@@ -15,9 +15,10 @@ export const BOOK_DETAILS = gql`
 export const BOOK_ADDED = gql`
   subscription {
     bookAdded {
-      ...Book
+      ...BookDetails
     }
   }
+  ${BOOK_DETAILS}
 `
 
 export const ALL_AUTHORS = gql`

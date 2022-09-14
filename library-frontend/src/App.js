@@ -4,13 +4,56 @@ import Books from './components/Books'
 import NewBook from './components/NewBook'
 import Login from './components/LoginForm'
 import Recommend from './components/Recommend'
+import './App.scss'
 import { useApolloClient, useSubscription } from '@apollo/client'
-import { ALL_BOOKS } from './queries'
+import { ALL_BOOKS, BOOK_ADDED, GENRES } from './queries'
+
+export const updateCache = (cache, query, bookAdded) => {
+  const uniqByTitle = (a) => {
+    let seen = new Set()
+    return a.filter((item) => {
+      const k = item.title
+      return seen.has(k) ? false : seen.add(k)
+    })
+  }
+
+  if (
+    cache.readQuery({
+      query: ALL_BOOKS,
+    })
+  ) {
+    cache.updateQuery(query, ({ allBooks }) => {
+      return {
+        allBooks: uniqByTitle(allBooks.concat(bookAdded)),
+      }
+    })
+    bookAdded.genres.forEach((genre) => {
+      if (cache.readQuery({ query: ALL_BOOKS, variables: { genre } })) {
+        cache.updateQuery(
+          { query: ALL_BOOKS, variables: { genre } },
+          ({ allBooks }) => {
+            return {
+              allBooks: uniqByTitle(allBooks.concat(bookAdded)),
+            }
+          }
+        )
+      }
+    })
+    cache.updateQuery({ query: GENRES }, ({ allGenres }) => {
+      return {
+        allGenres: [
+          ...new Set(
+            allGenres.concat(bookAdded.genres).flatMap((genre) => genre)
+          ),
+        ],
+      }
+    })
+  }
+}
 
 const App = () => {
   const [page, setPage] = useState('authors')
   const [token, setToken] = useState(null)
-  // const result = useQuery(ALL_BOOKS)
   const client = useApolloClient()
   const logout = () => {
     setToken(null)
@@ -22,11 +65,19 @@ const App = () => {
     setToken(localStorage.getItem('library-user-token'))
   }, [])
 
-  // if (result.loading) return <div>loading...</div>
+  useSubscription(BOOK_ADDED, {
+    onSubscriptionData: ({ subscriptionData }) => {
+      const bookAdded = subscriptionData.data.bookAdded
+      if (page === 'books') {
+        window.alert(`${bookAdded.title} added by ${bookAdded.author.name}`)
+      }
+      updateCache(client.cache, { query: ALL_BOOKS }, bookAdded)
+    },
+  })
 
   return (
-    <div>
-      <div>
+    <div className="main">
+      <div className="buttons">
         <button onClick={() => setPage('authors')}>authors</button>
         <button onClick={() => setPage('books')}>books</button>
         {token ? (
