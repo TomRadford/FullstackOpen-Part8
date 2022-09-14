@@ -141,9 +141,9 @@ const resolvers = {
   },
   // Author: {
   //   bookCount: async (root, args) => {
-  //     // const bookCount = await Book.count({ author: root._id })
-  //     // return bookCount
-  //     return 0
+  //     const bookCount = await Book.count({ author: root._id })
+  //     return bookCount
+  //
   //   },
   // },
 }

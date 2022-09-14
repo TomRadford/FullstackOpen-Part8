@@ -6,7 +6,10 @@ export const BOOK_DETAILS = gql`
     published
     genres
     author {
+      id
       name
+      bookCount
+      born
     }
     id
   }

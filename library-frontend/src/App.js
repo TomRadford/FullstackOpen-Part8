@@ -6,7 +6,7 @@ import Login from './components/LoginForm'
 import Recommend from './components/Recommend'
 import './App.scss'
 import { useApolloClient, useSubscription } from '@apollo/client'
-import { ALL_BOOKS, BOOK_ADDED, GENRES } from './queries'
+import { ALL_BOOKS, BOOK_ADDED, GENRES, ALL_AUTHORS } from './queries'
 
 export const updateCache = (cache, query, bookAdded) => {
   const uniqByTitle = (a) => {
@@ -16,6 +16,19 @@ export const updateCache = (cache, query, bookAdded) => {
       return seen.has(k) ? false : seen.add(k)
     })
   }
+
+  const uniqByName = (a) => {
+    let seen = new Set()
+    return a.filter((item) => {
+      return seen.has(item.name) ? false : seen.add(item.name)
+    })
+  }
+
+  cache.updateQuery({ query: ALL_AUTHORS }, ({ allAuthors }) => {
+    return {
+      allAuthors: uniqByName(allAuthors.concat(bookAdded.author)),
+    }
+  })
 
   if (
     cache.readQuery({
